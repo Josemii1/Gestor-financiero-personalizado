@@ -1,0 +1,109 @@
+name: Private web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-web-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Validate encrypted client and private gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Use Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install the locked dependencies
+        run: npm ci
+      - name: Test finances, encryption, updates, private access and release isolation
+        run: npm test
+      - name: Build only the generic application assets
+        run: npm run build
+
+  deploy:
+    name: Publish the authenticated private web
+    needs: checks
+    if: >-
+      vars.ENABLE_PRIVATE_DEPLOY == 'true' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: private-web-production
+      cancel-in-progress: false
+    steps:
+      - name: Check out the exact validated revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Use Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install the locked dependencies
+        run: npm ci
+      - name: Build the exact validated revision
+        run: npm run build
+      - name: Deploy with the required private identity configuration
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          ACCESS_TEAM_DOMAIN: ${{ vars.ACCESS_TEAM_DOMAIN }}
+          ACCESS_AUDIENCE: ${{ vars.ACCESS_AUDIENCE }}
+          ACCESS_ALLOWED_EMAIL: ${{ secrets.ACCESS_ALLOWED_EMAIL }}
+          WRANGLER_SEND_METRICS: 'false'
+          WRANGLER_LOG_PATH: ${{ runner.temp }}/mi-economia-wrangler.log
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+          import { tmpdir } from 'node:os';
+          import path from 'node:path';
+          import { spawnSync } from 'node:child_process';
+
+          const required = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID',
+            'ACCESS_TEAM_DOMAIN', 'ACCESS_AUDIENCE', 'ACCESS_ALLOWED_EMAIL'];
+          const missing = required.filter(name => !process.env[name]?.trim());
+          if (missing.length) throw new Error('Private deployment is disabled until these settings exist: ' + missing.join(', '));
+          const domain = process.env.ACCESS_TEAM_DOMAIN.trim().toLowerCase();
+          const audience = process.env.ACCESS_AUDIENCE.trim();
+          const email = process.env.ACCESS_ALLOWED_EMAIL.trim().toLowerCase();
+          if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.cloudflareaccess\.com$/.test(domain) ||
+              !/^[A-Za-z0-9_-]{16,256}$/.test(audience) ||
+              email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            throw new Error('Private access settings are invalid. No deployment was attempted.');
+          }
+          const directory = await mkdtemp(path.join(process.env.RUNNER_TEMP || tmpdir(), 'mi-economia-secrets-'));
+          const secretFile = path.join(directory, 'secrets.json');
+          try {
+            await writeFile(secretFile, JSON.stringify({ ACCESS_ALLOWED_EMAIL: email }), { mode: 0o600 });
+            const result = spawnSync(process.execPath, [
+              'node_modules/wrangler/bin/wrangler.js', 'deploy', '--no-autoconfig',
+              '--secrets-file', secretFile,
+              '--var', 'ACCESS_TEAM_DOMAIN:' + domain,
+              '--var', 'ACCESS_AUDIENCE:' + audience
+            ], { stdio: 'inherit', env: process.env });
+            if (result.error) throw new Error('The private deployment process could not be started.');
+            if (result.status !== 0) throw new Error('The private deployment process did not complete successfully.');
+          } finally {
+            await rm(directory, { recursive: true, force: true });
+          }
+          NODE

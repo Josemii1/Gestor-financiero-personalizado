@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+mi-economia-*.json
+mi-copia-inicial.json
+Mi-economia.html
+Mi-economia-personal.zip
+Mi-economia-cifrada.html
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example

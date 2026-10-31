@@ -1,0 +1,21 @@
+{
+  "name": "mi-economia-privada",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gestor financiero cifrado con despliegue privado autenticado",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node planner.test.cjs && node crypto-vault.test.cjs && node web-updates.test.cjs && node scripts/build.test.cjs && node deploy/worker.test.mjs",
+    "test:private": "node deploy/worker.test.mjs",
+    "build": "node scripts/build.mjs",
+    "deploy:private": "wrangler deploy"
+  },
+  "dependencies": {
+    "jose": "6.2.14"
+  },
+  "devDependencies": {
+    "wrangler": "4.156.0"
+  }
+}
