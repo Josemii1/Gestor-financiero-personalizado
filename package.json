@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node planner.test.cjs && node crypto-vault.test.cjs && node web-updates.test.cjs && node scripts/build.test.cjs && node deploy/worker.test.mjs",
+    "test": "node planner.test.cjs && node crypto-vault.test.cjs && node dual-vault.test.cjs && node web-updates.test.cjs && node scripts/build.test.cjs && node deploy/worker.test.mjs",
     "test:private": "node deploy/worker.test.mjs",
     "build": "node scripts/build.mjs",
     "deploy:private": "wrangler deploy"

@@ -1,0 +1,76 @@
+name: Public encrypted client (two passwords)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-encrypted-client
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Validate both passwords and build the generic client
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the exact requested revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Use Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Require the two-password implementation and its test suite
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFile, access } from 'node:fs/promises';
+          await access('dual-vault.js');
+          await access('dual-vault.test.cjs');
+          const pkg = JSON.parse(await readFile('package.json', 'utf8'));
+          assert.match(pkg.scripts?.test || '', /\bdual-vault\.test\.cjs\b/,
+            'The two-password test suite must be included before a public publication.');
+          const html = await readFile('index.html', 'utf8');
+          assert.match(html, /<script\b[^>]*src=["'](?:\.\/)?dual-vault\.js["']/,
+            'The client must load the two-password encryption module.');
+          NODE
+      - name: Install the locked dependencies
+        run: npm ci
+      - name: Test encryption, both passwords, finances and publication isolation
+        run: npm test
+      - name: Build only allowlisted generic client files
+        run: npm run build
+      - name: Upload only the generic site artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: dist
+
+  deploy:
+    name: Publish the public screen with locally encrypted private data
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Use the repository's existing Pages configuration
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+        with:
+          enablement: false
+      - name: Publish the exact validated site artifact
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

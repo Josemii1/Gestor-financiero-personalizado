@@ -5,7 +5,7 @@ import { lstat, mkdir, readFile, readdir, realpath, unlink, writeFile } from 'no
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-export const ASSETS = Object.freeze(['style.css', 'planner.js', 'crypto-vault.js', 'vault-ui.js', 'app.js', 'web-updates.js']);
+export const ASSETS = Object.freeze(['style.css', 'planner.js', 'crypto-vault.js', 'dual-vault.js', 'vault-ui.js', 'app.js', 'web-updates.js']);
 const INPUTS = ['index.html', ...ASSETS];
 const MAX_INPUT_BYTES = 2 * 1024 * 1024;
 const DEFAULT_SOURCE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

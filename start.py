@@ -7,7 +7,8 @@ from urllib.parse import urlsplit
 import webbrowser
 
 ROOT = Path(__file__).resolve().parent
-FILES = {'/web-updates.js': ('web-updates.js', 'text/javascript; charset=utf-8'),
+FILES = {'/dual-vault.js': ('dual-vault.js', 'text/javascript; charset=utf-8'),
+         '/web-updates.js': ('web-updates.js', 'text/javascript; charset=utf-8'),
          '/crypto-vault.js': ('crypto-vault.js', 'text/javascript; charset=utf-8'),
          '/vault-ui.js': ('vault-ui.js', 'text/javascript; charset=utf-8'),
          '/style.css': ('style.css', 'text/css; charset=utf-8'),

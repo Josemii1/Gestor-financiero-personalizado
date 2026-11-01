@@ -15,7 +15,7 @@ function start(win){
   if(!banner||!text||!button)return;
   let pending=null,checking=false,stopped=false,failures=0,timer=null,retryAfterLoadError=false;
   const versionLabel=doc.getElementById('web-version');if(versionLabel)versionLabel.textContent='Versión '+current.slice(0,8);
-  const editingGate=()=>doc.body.dataset.vaultRestorePending==='true'||Array.from(doc.querySelectorAll('#vault-gate input')).some(input=>input.type==='file'?input.files?.length>0:Boolean(input.value));
+  const editingGate=()=>doc.body.dataset.vaultRestorePending==='true'||doc.body.dataset.vaultStage==='inner'||Array.from(doc.querySelectorAll('#vault-gate input')).some(input=>input.type==='file'?input.files?.length>0:Boolean(input.value));
   const show=message=>{text.textContent=message;banner.hidden=false;};
   function go(automatic){
    if(!pending||doc.body.classList.contains('vault-busy')){if(pending)show('Hay una actualización disponible. Espera a que termine la operación de cifrado.');return;}
